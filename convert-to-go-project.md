@@ -417,9 +417,26 @@ Add Go files to the project. Create the same structure as `/create-go-project`:
 
 ### SEO and Meta Tag Migration
 
-Migrate existing SEO and Open Graph meta tags to the Go PageMeta system.
+**Key principle:** In Go, handlers do NOT construct meta. Templates own their meta.
 
-#### Create internal/meta/meta.go
+#### Create Files for SEO
+
+1. `internal/ctxkeys/keys.go` - Typed context keys
+2. `internal/meta/meta.go` - PageMeta struct
+3. `internal/meta/context.go` - Context helpers (SiteNameFromCtx)
+4. `templates/layouts/meta.templ` - Meta tag component
+
+#### internal/ctxkeys/keys.go
+
+```go
+package ctxkeys
+
+type siteConfigKey struct{}
+
+var SiteConfig = siteConfigKey{}
+```
+
+#### internal/meta/meta.go
 
 ```go
 package meta
@@ -427,137 +444,148 @@ package meta
 type PageMeta struct {
     Title       string
     Description string
-    Keywords    []string
     OGType      string
     OGImage     string
-    OGImageAlt  string
-    TwitterCard string
     Canonical   string
     NoIndex     bool
-    SiteName    string
-    Locale      string
 }
 
-func New(title string) *PageMeta {
-    return &PageMeta{
+func New(title, description string) PageMeta {
+    return PageMeta{
         Title:       title,
+        Description: description,
         OGType:      "website",
-        TwitterCard: "summary_large_image",
-        Locale:      "en_US",
     }
 }
 
-func (m *PageMeta) WithDescription(desc string) *PageMeta {
-    m.Description = desc
-    return m
-}
-
-func (m *PageMeta) WithOGImage(url, alt string) *PageMeta {
+func (m PageMeta) WithOGImage(url string) PageMeta {
     m.OGImage = url
-    m.OGImageAlt = alt
     return m
 }
 
-func (m *PageMeta) WithCanonical(url string) *PageMeta {
-    m.Canonical = url
-    return m
-}
-
-func (m *PageMeta) WithSiteName(name string) *PageMeta {
-    m.SiteName = name
-    return m
-}
-
-func (m *PageMeta) AsArticle() *PageMeta {
+func (m PageMeta) AsArticle() PageMeta {
     m.OGType = "article"
     return m
 }
 
-func (m *PageMeta) AsProduct() *PageMeta {
+func (m PageMeta) AsProduct() PageMeta {
     m.OGType = "product"
     return m
 }
 ```
 
-#### Framework-Specific Meta Migration
+#### internal/meta/context.go
 
-**From Next.js Head/Metadata:**
+```go
+package meta
+
+import (
+    "context"
+    "yourapp/internal/config"
+    "yourapp/internal/ctxkeys"
+)
+
+func SiteFromCtx(ctx context.Context) config.SiteConfig {
+    if cfg, ok := ctx.Value(ctxkeys.SiteConfig).(config.SiteConfig); ok {
+        return cfg
+    }
+    return config.SiteConfig{Name: "MyApp"}
+}
+
+func SiteNameFromCtx(ctx context.Context) string {
+    return SiteFromCtx(ctx).Name
+}
+```
+
+#### Framework-Specific Migration
+
+**From Next.js (handler passes meta):**
 
 ```jsx
 // Next.js (before)
 export const metadata = {
   title: 'My Page',
   description: 'Page description',
-  openGraph: {
-    title: 'My Page',
-    description: 'Page description',
-    images: ['/og-image.png'],
-  },
 };
 ```
 
-```go
-// Go handler (after)
-m := meta.New("My Page").
-    WithDescription("Page description").
-    WithOGImage("/og-image.png", "My Page")
+```templ
+// Go template (after) - template constructs meta
+templ MyPage() {
+    @layouts.Base(meta.New("My Page", "Page description")) {
+        // content
+    }
+}
 ```
 
-**From Django/Jinja2 templates:**
+**From Django (template blocks):**
 
 ```django
 {% raw %}
 {% block meta %}
 <title>{{ page_title }}</title>
 <meta name="description" content="{{ page_description }}">
-<meta property="og:title" content="{{ page_title }}">
-<meta property="og:image" content="{{ og_image }}">
 {% endblock %}
 {% endraw %}
 ```
 
+```templ
+// Go template (after)
+templ MyPage() {
+    @layouts.Base(meta.New("Page Title", "Page description")) {
+        // content
+    }
+}
+```
+
+**From Laravel (controller passes vars):**
+
+```php
+// Laravel (before)
+return view('page', ['title' => 'My Page']);
+```
+
 ```go
-// Go handler (after)
-m := meta.New(pageTitle).
-    WithDescription(pageDescription).
-    WithOGImage(ogImage, pageTitle)
+// Go handler (after) - does NOT pass meta
+func (h *Handler) Page(c echo.Context) error {
+    return pages.Page().Render(c.Request().Context(), c.Response().Writer)
+}
 ```
 
-**From Laravel Blade:**
-
-```blade
-@section('meta')
-<title>{{ $title }}</title>
-<meta name="description" content="{{ $description }}">
-<meta property="og:title" content="{{ $title }}">
-@endsection
+```templ
+// Go template - owns its meta
+templ Page() {
+    @layouts.Base(meta.New("My Page", "Description")) {
+        // content
+    }
+}
 ```
 
-```go
-// Go handler (after)
-m := meta.New(title).
-    WithDescription(description)
-```
-
-**From Express/EJS/Pug:**
-
-Look for meta variables passed to templates:
+**From Express (res.render with vars):**
 
 ```javascript
 // Express (before)
-res.render('page', {
-  title: 'My Page',
-  description: 'Page description',
-  ogImage: '/og-image.png'
-});
+res.render('page', { title: 'My Page' });
 ```
 
 ```go
-// Go handler (after)
-m := meta.New("My Page").
-    WithDescription("Page description").
-    WithOGImage("/og-image.png", "My Page")
+// Go handler (after) - clean, no meta
+func (h *Handler) Page(c echo.Context) error {
+    return pages.Page().Render(c.Request().Context(), c.Response().Writer)
+}
 ```
+
+#### Migrating Site-Wide Config
+
+Move hardcoded site names to environment variables:
+
+```bash
+# .envrc
+export SITE_NAME="My App"
+export SITE_URL="https://example.com"
+```
+
+Middleware injects into context, templates access via `meta.SiteNameFromCtx(ctx)`.
 
 #### Preserve Existing OG Images
 
@@ -565,7 +593,7 @@ When converting, identify and preserve existing OG images:
 
 1. Check `public/`, `static/`, `assets/` for og-*.png files
 2. Copy to Go project's `static/images/` directory
-3. Update image paths in PageMeta calls
+3. Reference in templates: `meta.New("Title", "Desc").WithOGImage("/static/images/og.png")`
 
 ### Database Schema Migration
 
