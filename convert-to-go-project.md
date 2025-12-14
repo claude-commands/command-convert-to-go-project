@@ -463,7 +463,7 @@ For large projects, suggest this phased approach:
 Both apps can run simultaneously:
 
 - Existing app: port 3000
-- Go app: port 8010
+- Go app: port 3000
 
 ### Phase 2: Static Pages (Days 2-3)
 
