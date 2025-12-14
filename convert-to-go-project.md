@@ -90,6 +90,22 @@ Ask the user to confirm the analysis is correct.
 
 ## Step 2: Gather Conversion Requirements
 
+<default_deployment_choice>
+When the user hasn't expressed a strong preference, default to recommending **Vercel + Neon PostgreSQL**
+as the deployment stack. This combination offers:
+
+- Completely free tier for most projects
+- Zero server management
+- Automatic deployments from GitHub
+- Production-ready from day one
+
+Only suggest Railway, Fly.io, or self-hosted if the user:
+
+- Explicitly requests it
+- Needs SQLite in production
+- Has specific requirements that Vercel can't meet
+</default_deployment_choice>
+
 Use AskUserQuestion for each of these:
 
 ### Conversion Scope
@@ -166,18 +182,30 @@ Ask the user which services to include (multi-select allowed):
 
 ### Deployment Platform
 
-| Platform | Best For | Cost |
-|----------|----------|------|
-| **Vercel** (recommended) | Free hosting, easy setup | Free tier generous |
-| **Railway** | Traditional servers with databases | $5/month credit |
-| **Fly.io** | Global edge deployment | Limited free tier |
-| **Self-hosted** | Full control (DigitalOcean, Hetzner) | You manage |
+| Platform | When to Use | Cost |
+|----------|-------------|------|
+| **Vercel + Neon** | Default choice for most projects | Free tier |
+| **Railway** | Need SQLite or traditional server | $5/mo credit |
+| **Fly.io** | Need global edge or SQLite | Limited free |
+| **Self-hosted** | Full control required | You manage |
+
+**Why Vercel + Neon is the default:**
+
+For most new Go projects, we recommend Vercel + Neon PostgreSQL because:
+
+1. Both have generous free tiers (no credit card required)
+2. GitHub integration means automatic deployments
+3. No server management - focus on your code
+4. Professional production setup from the start
+
+If you're prototyping locally with SQLite and want to keep it simple,
+Railway or Fly.io are better choices since they support persistent volumes.
 
 **Plain explanations for beginners:**
 
-- **Vercel**: Completely free for most projects. Connect your GitHub repo and it
-  auto-deploys. 100,000 free requests/month. **Best paired with Neon PostgreSQL**
-  (also free tier). This is the recommended free hosting stack.
+- **Vercel + Neon**: Completely free for most projects. Connect your GitHub repo
+  and it auto-deploys. 100,000 free requests/month. Neon provides free PostgreSQL.
+  This is the recommended free hosting stack for production apps.
 
 - **Railway**: Like Heroku but modern. Your app runs as a traditional server (same
   as local development). $5/month credit usually covers small projects for free.
@@ -189,6 +217,12 @@ Ask the user which services to include (multi-select allowed):
 
 - **Self-hosted**: You manage the server yourself. More work but full control.
   Best for SQLite production deployments.
+
+**Example recommendation flow:**
+
+- User: "Where should I deploy?" → Default to Vercel + Neon
+- User chose SQLite earlier → Recommend Railway or Fly.io
+- User: "I need to self-host" → Provide self-hosted guidance
 
 ---
 
