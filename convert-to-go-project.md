@@ -410,9 +410,162 @@ Add Go files to the project. Create the same structure as `/create-go-project`:
 1. **Foundation files:** go.mod, .gitignore additions, .air.toml, Makefile
 2. **Configuration:** internal/config/config.go, sqlc/sqlc.yaml
 3. **Database:** internal/database/database.go, migrations (from existing schema)
-4. **Core Go:** internal/middleware, internal/handler
-5. **Templates:** Convert existing views to Templ
-6. **Entry point:** cmd/server/main.go, cmd/server/slog.go
+4. **SEO/Meta:** internal/meta/meta.go, templates/layouts/meta.templ
+5. **Core Go:** internal/middleware, internal/handler
+6. **Templates:** Convert existing views to Templ (including meta integration)
+7. **Entry point:** cmd/server/main.go, cmd/server/slog.go
+
+### SEO and Meta Tag Migration
+
+Migrate existing SEO and Open Graph meta tags to the Go PageMeta system.
+
+#### Create internal/meta/meta.go
+
+```go
+package meta
+
+type PageMeta struct {
+    Title       string
+    Description string
+    Keywords    []string
+    OGType      string
+    OGImage     string
+    OGImageAlt  string
+    TwitterCard string
+    Canonical   string
+    NoIndex     bool
+    SiteName    string
+    Locale      string
+}
+
+func New(title string) *PageMeta {
+    return &PageMeta{
+        Title:       title,
+        OGType:      "website",
+        TwitterCard: "summary_large_image",
+        Locale:      "en_US",
+    }
+}
+
+func (m *PageMeta) WithDescription(desc string) *PageMeta {
+    m.Description = desc
+    return m
+}
+
+func (m *PageMeta) WithOGImage(url, alt string) *PageMeta {
+    m.OGImage = url
+    m.OGImageAlt = alt
+    return m
+}
+
+func (m *PageMeta) WithCanonical(url string) *PageMeta {
+    m.Canonical = url
+    return m
+}
+
+func (m *PageMeta) WithSiteName(name string) *PageMeta {
+    m.SiteName = name
+    return m
+}
+
+func (m *PageMeta) AsArticle() *PageMeta {
+    m.OGType = "article"
+    return m
+}
+
+func (m *PageMeta) AsProduct() *PageMeta {
+    m.OGType = "product"
+    return m
+}
+```
+
+#### Framework-Specific Meta Migration
+
+**From Next.js Head/Metadata:**
+
+```jsx
+// Next.js (before)
+export const metadata = {
+  title: 'My Page',
+  description: 'Page description',
+  openGraph: {
+    title: 'My Page',
+    description: 'Page description',
+    images: ['/og-image.png'],
+  },
+};
+```
+
+```go
+// Go handler (after)
+m := meta.New("My Page").
+    WithDescription("Page description").
+    WithOGImage("/og-image.png", "My Page")
+```
+
+**From Django/Jinja2 templates:**
+
+```django
+{% raw %}
+{% block meta %}
+<title>{{ page_title }}</title>
+<meta name="description" content="{{ page_description }}">
+<meta property="og:title" content="{{ page_title }}">
+<meta property="og:image" content="{{ og_image }}">
+{% endblock %}
+{% endraw %}
+```
+
+```go
+// Go handler (after)
+m := meta.New(pageTitle).
+    WithDescription(pageDescription).
+    WithOGImage(ogImage, pageTitle)
+```
+
+**From Laravel Blade:**
+
+```blade
+@section('meta')
+<title>{{ $title }}</title>
+<meta name="description" content="{{ $description }}">
+<meta property="og:title" content="{{ $title }}">
+@endsection
+```
+
+```go
+// Go handler (after)
+m := meta.New(title).
+    WithDescription(description)
+```
+
+**From Express/EJS/Pug:**
+
+Look for meta variables passed to templates:
+
+```javascript
+// Express (before)
+res.render('page', {
+  title: 'My Page',
+  description: 'Page description',
+  ogImage: '/og-image.png'
+});
+```
+
+```go
+// Go handler (after)
+m := meta.New("My Page").
+    WithDescription("Page description").
+    WithOGImage("/og-image.png", "My Page")
+```
+
+#### Preserve Existing OG Images
+
+When converting, identify and preserve existing OG images:
+
+1. Check `public/`, `static/`, `assets/` for og-*.png files
+2. Copy to Go project's `static/images/` directory
+3. Update image paths in PageMeta calls
 
 ### Database Schema Migration
 
