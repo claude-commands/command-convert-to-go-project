@@ -62,7 +62,7 @@ ln -s ~/projects/command-convert-to-go-project/convert-to-go-project.md ~/.claud
 
 ## Requirements
 
-- Go 1.23+
+- Go 1.25+
 - Node.js (for Tailwind CSS)
 - direnv (recommended)
 
