@@ -1,6 +1,6 @@
 ---
 argument-hint: "[target-directory]"
-description: "Convert an existing project to the Go + Templ + HTMX + Tailwind stack"
+description: "Convert an existing project to the Go + Templ + HTMX + Alpine.js + Tailwind stack"
 model: claude-opus-4-5-20251101
 allowed-tools: ["Bash", "Read", "Write", "Edit", "Glob", "Grep", "AskUserQuestion"]
 ---
@@ -9,7 +9,7 @@ allowed-tools: ["Bash", "Read", "Write", "Edit", "Glob", "Grep", "AskUserQuestio
 
 **If `$ARGUMENTS` is empty or not provided:**
 
-This command converts an existing project to the Go + Templ + HTMX + Tailwind stack.
+This command converts an existing project to the Go + Templ + HTMX + Alpine.js + Tailwind stack.
 
 It will analyze your current project, identify what can be preserved, and incrementally
 add Go stack files while migrating your existing logic.
@@ -471,6 +471,77 @@ templ UserList(users []User) {
     </ul>
 }
 ```
+
+### Client-Side JavaScript to Alpine.js
+
+Alpine.js handles client-side interactivity (dropdowns, modals, tabs) while HTMX handles
+server communication. Together they replace heavy JavaScript frameworks.
+
+**jQuery to Alpine.js:**
+
+```javascript
+// jQuery (before)
+$('.dropdown-toggle').click(function() {
+  $(this).next('.dropdown-menu').toggle();
+});
+```
+
+```html
+<!-- Alpine.js (after) -->
+<div x-data="{ open: false }">
+  <button @click="open = !open">Toggle</button>
+  <div x-show="open" x-transition>Dropdown content</div>
+</div>
+```
+
+**React useState to Alpine.js:**
+
+```jsx
+// React (before)
+const [isOpen, setIsOpen] = useState(false);
+return (
+  <div>
+    <button onClick={() => setIsOpen(!isOpen)}>Toggle</button>
+    {isOpen && <div>Content</div>}
+  </div>
+);
+```
+
+```html
+<!-- Alpine.js (after) -->
+<div x-data="{ open: false }">
+  <button @click="open = !open">Toggle</button>
+  <div x-show="open" x-transition>Content</div>
+</div>
+```
+
+**Vue v-model to Alpine.js:**
+
+```html
+<!-- Vue (before) -->
+<input v-model="search" />
+<p>Searching for: {{ search }}</p>
+```
+
+```html
+<!-- Alpine.js (after) -->
+<div x-data="{ search: '' }">
+  <input x-model="search" />
+  <p>Searching for: <span x-text="search"></span></p>
+</div>
+```
+
+**Common Alpine.js patterns:**
+
+| Pattern | Alpine.js |
+|---------|-----------|
+| Toggle visibility | `x-show="open"` with `@click="open = !open"` |
+| Conditional render | `x-if="condition"` (removes from DOM) |
+| Loop | `x-for="item in items"` |
+| Bind attribute | `:class="{ active: isActive }"` |
+| Two-way binding | `x-model="value"` |
+| Event listener | `@click`, `@submit.prevent`, `@keydown.escape` |
+| Transitions | `x-transition` or `x-transition.duration.300ms` |
 
 ---
 
@@ -1402,6 +1473,7 @@ templ Base(m meta.PageMeta) {
             @MetaTags(m)
             <link rel="stylesheet" href="/static/css/output.css"/>
             <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+            <script defer src="https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js"></script>
         </head>
         <body class="bg-background text-foreground min-h-screen">
             <header class="border-b border-border">
@@ -1449,7 +1521,7 @@ templ Home() {
             </div>
         </div>
 
-        <div class="mt-12 grid md:grid-cols-3 gap-6">
+        <div class="mt-12 grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div class="p-6 border border-border rounded-lg">
                 <h3 class="font-semibold mb-2">Fast Development</h3>
                 <p class="text-muted-foreground text-sm">Hot reload with Air. Changes appear instantly.</p>
@@ -1461,6 +1533,10 @@ templ Home() {
             <div class="p-6 border border-border rounded-lg">
                 <h3 class="font-semibold mb-2">Modern Styling</h3>
                 <p class="text-muted-foreground text-sm">Tailwind CSS v4 with dark mode support.</p>
+            </div>
+            <div class="p-6 border border-border rounded-lg">
+                <h3 class="font-semibold mb-2">Client Interactivity</h3>
+                <p class="text-muted-foreground text-sm">Alpine.js for dropdowns, modals, and tabs.</p>
             </div>
         </div>
     }
